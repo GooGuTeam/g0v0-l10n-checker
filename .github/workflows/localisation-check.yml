@@ -92,27 +92,27 @@ jobs:
     steps:
       - name: Check out the calling repository as the osu! side
         if: ${{ inputs.osu-repository == '' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: osu
 
       - name: Check out the configured osu! repository
         if: ${{ inputs.osu-repository != '' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ inputs.osu-repository }}
           ref: ${{ inputs.osu-ref }}
           path: osu
 
       - name: Check out the resources repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ inputs.resources-repository }}
           ref: ${{ inputs.resources-ref }}
           path: resources
 
       - name: Check out the checker
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: GooGuTeam/g0v0-l10n-checker
           path: checker
