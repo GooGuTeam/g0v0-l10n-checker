@@ -1,0 +1,515 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "auto_shared_audio_on_background"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "auto_shared_audio_on_background_tooltip"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "buffer_size"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "buffer_size_tooltip"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "exclusive_audio_mode"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "exclusive_audio_mode_tooltip"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "period"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "period_tooltip"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/AudioSettingsStrings.cs",
+      "key": "restart_audio_engine"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/GeneralSettingsStrings.cs",
+      "key": "issue_report_dialog_header"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/GeneralSettingsStrings.cs",
+      "key": "issue_report_dialog_text"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/OnlinePlayStrings.cs",
+      "key": "footer_button_win_condition"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/OnlinePlayStrings.cs",
+      "key": "win_condition_badge_tooltip"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Osu/ModsStrings.cs",
+      "key": "classic_slider_judgement"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Osu/ModsStrings.cs",
+      "key": "classic_slider_judgement_description"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Osu/ModsStrings.cs",
+      "key": "score_v1_description"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Osu/ModsStrings.cs",
+      "key": "score_v2_description"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Osu/ModsStrings.cs",
+      "key": "show_slider_head_judgements_description"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Osu/ModsStrings.cs",
+      "key": "show_slider_head_judgements_label"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/ResultsScreenStrings.cs",
+      "key": "personal_best"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Taiko/TaikoEditorStrings.cs",
+      "key": "drum_roll_tool"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Taiko/TaikoEditorStrings.cs",
+      "key": "hit_tool"
+    },
+    {
+      "rule": "L10N001",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Taiko/TaikoEditorStrings.cs",
+      "key": "swell_tool"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/DeleteConfirmationDialog.resx",
+      "key": "cancel"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/DeleteConfirmationDialog.resx",
+      "key": "confirm"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/DeleteConfirmationDialog.resx",
+      "key": "header_text"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/FirstRunSetupBeatmapScreen.resx",
+      "key": "tutorial_button"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/FirstRunSetupBeatmapScreen.resx",
+      "key": "tutorial_description"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "exception_title"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "ruleset_caused_crash"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "ruleset_crash_suggestion"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "ruleset_error"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "ruleset_exception"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "ruleset_load_suggestion"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "ruleset_unable_to_load"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "ruleset_unknown_exception"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "screenshot_too_many_uploads"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "screenshot_upload_failure"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "screenshot_upload_success"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Notifications.resx",
+      "key": "uploading_screenshot"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/ResultsScreen.resx",
+      "key": "achieved_on_date"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "broken_rulesets"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "broken_rulesets_note"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "builtin_prefix"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "download_ruleset"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "loaded_rulesets"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "local_ruleset_restart_note"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "local_rulesets"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "online_rulesets"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "online_rulesets_fetch_failed"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "online_rulesets_fetching"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "online_rulesets_login_required"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "online_rulesets_source"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "online_rulesets_unsupported_server"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "refresh_online_rulesets"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "restore"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_builtin"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_management"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_management_subheading"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_no_version_information"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_not_installed"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_provided_by_server"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_unsupported"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_update_available"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "ruleset_version"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "show_assembly_in_file_manager"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "trusted_mode"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "trusted_mode_tooltip"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "unknown_version_placeholder"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/SkinComponents/SkinnableComponentStrings.resx",
+      "key": "animation_sequence"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/SupporterDisplay.resx",
+      "key": "consider_becoming_a_supporter"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/SupporterDisplay.resx",
+      "key": "thank_you_for_supporting"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Taiko/OsuEditor.resx",
+      "key": "drum_roll_tool"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Taiko/OsuEditor.resx",
+      "key": "hit_tool"
+    },
+    {
+      "rule": "L10N002",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Taiko/OsuEditor.resx",
+      "key": "swell_tool"
+    },
+    {
+      "rule": "L10N003",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/HUD/SpectatorListStrings.cs",
+      "key": "osu.Game.Resources.Localisation.SpectatorList"
+    },
+    {
+      "rule": "L10N003",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/SkinComponents/SkinnableModDisplayStrings.cs",
+      "key": "osu.Game.Resources.Localisation.SkinnableModDisplay"
+    },
+    {
+      "rule": "L10N003",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/Taiko/TaikoEditorStrings.cs",
+      "key": "osu.Game.Resources.Localisation.Osu.OsuEditor"
+    },
+    {
+      "rule": "L10N007",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Editor.resx",
+      "key": "Finish editing and import changes"
+    },
+    {
+      "rule": "L10N007",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Editor.resx",
+      "key": "reset_bookmarks..."
+    },
+    {
+      "rule": "L10N007",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/RulesetSettings.resx",
+      "key": "Timing_based_colouring"
+    },
+    {
+      "rule": "L10N008",
+      "source": "Osu",
+      "file": "osu.Game/Localisation/ScreenshotManagerStrings.cs",
+      "key": "osu.Game.Resources.Localisation.ScreenshotManager"
+    },
+    {
+      "rule": "L10N009",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/DeleteConfirmationDialog.resx",
+      "key": "osu.Game.Resources.Localisation.DeleteConfirmationDialog"
+    },
+    {
+      "rule": "L10N009",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/SupporterDisplay.resx",
+      "key": "osu.Game.Resources.Localisation.SupporterDisplay"
+    },
+    {
+      "rule": "L10N009",
+      "source": "Resources",
+      "file": "osu.Game.Resources/Localisation/Taiko/OsuEditor.resx",
+      "key": "osu.Game.Resources.Localisation.Taiko.OsuEditor"
+    }
+  ]
+}
