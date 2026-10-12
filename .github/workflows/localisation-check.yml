@@ -14,6 +14,26 @@ name: Localisation check
 # By default the caller's own repository is checked out as the osu side, so no extra credentials are
 # needed beyond reading the (public) resources repository.
 #
+# The resources repository is the mirror image: it names the osu side explicitly and asks for the
+# other half of the report.
+#
+#   jobs:
+#     localisation:
+#       uses: GooGuTeam/g0v0-l10n-checker/.github/workflows/localisation-check.yml@main
+#       permissions:
+#         contents: read
+#         security-events: write
+#       with:
+#         osu-repository: GooGuTeam/g0v0
+#         osu-ref: v2
+#         resources-ref: ${{ github.sha }}   # the commit under test, not the default branch
+#         sarif-source: resources
+#
+# The whole cross-check runs either way — both sides are needed to check anything. Only the SARIF
+# report differs, because a SARIF location is a path relative to one repository, and the upload only
+# ever targets the calling repository. One call therefore publishes the `*Strings.cs` findings, the
+# other publishes the `.resx` ones.
+#
 # Results are reported three ways: inline annotations on the check run, a table in the job summary,
 # and a SARIF file uploaded to code scanning, where the findings become alerts with a lifecycle of
 # their own. The last one is best effort — see the upload step.
@@ -56,6 +76,11 @@ on:
         type: string
         required: false
         default: error
+      sarif-source:
+        description: Which side the SARIF report describes, osu | resources. Must match the calling repository.
+        type: string
+        required: false
+        default: osu
     outputs:
       errors:
         description: Number of errors reported.
@@ -85,6 +110,10 @@ on:
         description: never | error | warning
         type: string
         default: error
+      sarif-source:
+        description: Which side the SARIF report describes, osu | resources.
+        type: string
+        default: osu
 
 permissions:
   contents: read
@@ -101,6 +130,22 @@ jobs:
       errors: ${{ steps.summary.outputs.errors }}
       warnings: ${{ steps.summary.outputs.warnings }}
     steps:
+      # The first checkout below reads an empty `osu-repository` as "the caller is the osu side". That
+      # is exactly right for the osu repository and silently wrong for every other caller: the
+      # resources repository would be scanned as if its `osu.Game.Resources/Localisation/*.resx` files
+      # were `osu.Game/Localisation/*Strings.cs`, and the result is 100% noise. Stop before checking
+      # anything out rather than publish that.
+      - name: Refuse to cross-check a repository against itself
+        if: ${{ inputs.osu-repository == '' }}
+        env:
+          CALLER: ${{ github.repository }}
+          RESOURCES: ${{ inputs.resources-repository }}
+        run: |
+          if [ "${CALLER,,}" = "${RESOURCES,,}" ]; then
+            echo "::error::$CALLER holds the .resx files, so it has to name the osu side explicitly with the osu-repository input"
+            exit 1
+          fi
+
       - name: Check out the calling repository as the osu! side
         if: ${{ inputs.osu-repository == '' }}
         uses: actions/checkout@v7
@@ -150,7 +195,8 @@ jobs:
           #
           # The SARIF report is written from the same run but is deliberately not subject to the
           # baseline: code scanning keeps its own alert state, and the known issues are exactly what
-          # deserves to be listed there for triage.
+          # deserves to be listed there for triage. It only ever contains the side named by
+          # `sarif-source` — the one whose repository this is.
           dotnet run --project checker/src/g0v0.LocalisationChecker -c Release -- \
             --osu osu \
             --resources resources \
@@ -161,7 +207,7 @@ jobs:
             $extra_args \
             --json-report "$RUNNER_TEMP/localisation.json" \
             --sarif-report "$RUNNER_TEMP/localisation.sarif" \
-            --sarif-source osu
+            --sarif-source "${{ inputs.sarif-source }}"
 
       - name: Summarise
         id: summary
@@ -185,7 +231,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       # Code scanning is where GitHub lists third-party findings, and it is the only place an alert
-      # outlives the run. Three things can go wrong, and none of them may turn the check red:
+      # outlives the run. The report holds one repository's side (see `sarif-source`), which is also
+      # the repository this upload lands in — so every path in it resolves.
+      #
+      # Three things can go wrong, and none of them may turn the check red:
       #
       #  * a pull request from a fork gets a read-only token that `permissions:` cannot widen, so the
       #    upload is skipped there;
