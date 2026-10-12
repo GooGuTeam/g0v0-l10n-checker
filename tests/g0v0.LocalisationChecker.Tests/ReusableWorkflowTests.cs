@@ -87,13 +87,23 @@ public class ReusableWorkflowTests
         Assert.That(step, Does.Contain("-g0v0"),
             "the tag is v<version>-g0v0; a bare version is not a ref and fails the checkout");
 
+        // And it has to be read through the osu checkout's directory. The checkouts put the two
+        // repositories side by side in the workspace (`path: osu`, `path: resources`), so a path
+        // relative to the *repository* root reads nothing and stops the run before the checker
+        // starts — which is what happened the first time this step was written. Tie it to the
+        // directory the checker is actually pointed at rather than to a spelling of the path.
+        string osu = OsuArgument(workflow);
+
+        Assert.That(step, Does.Contain($"{osu}/osu.Game/osu.Game.csproj"),
+            $"the csproj has to be read under '{osu}', the tree the checker is pointed at");
+
         // Order is the whole trick: the property lives in the osu! side's working tree, and the
         // resources checkout is what consumes the answer.
-        int osu = workflow.IndexOf("Check out the configured osu! repository", StringComparison.Ordinal);
+        int osuSide = workflow.IndexOf("Check out the configured osu! repository", StringComparison.Ordinal);
         int resolve = workflow.IndexOf("Resolve the resources ref", StringComparison.Ordinal);
         int resources = workflow.IndexOf("Check out the resources repository", StringComparison.Ordinal);
 
-        Assert.That(osu, Is.LessThan(resolve), "the csproj has to be on disk before it can be read");
+        Assert.That(osuSide, Is.LessThan(resolve), "the csproj has to be on disk before it can be read");
         Assert.That(resolve, Is.LessThan(resources), "the ref has to be resolved before the checkout that needs it");
 
         Assert.That(workflow, Does.Contain("ref: ${{ inputs.resources-ref || steps.resources.outputs.ref }}"),
@@ -121,5 +131,21 @@ public class ReusableWorkflowTests
         int end = workflow.IndexOf("\n      - ", start, StringComparison.Ordinal);
 
         return workflow[start..(end < 0 ? workflow.Length : end)];
+    }
+
+    /// <summary>
+    /// The directory the checker is told to read the osu! side from. Anything else that reads a file
+    /// out of that tree has to go through the same directory, or it reads the wrong place — the
+    /// checkouts put the repositories side by side in the workspace rather than in the calling
+    /// repository's root.
+    /// </summary>
+    private static string OsuArgument(string workflow)
+    {
+        string run = Step(workflow, "name: Run the checker");
+
+        int index = run.IndexOf("--osu ", StringComparison.Ordinal);
+        Assert.That(index, Is.GreaterThanOrEqualTo(0), "the checker is no longer told where the osu! side is");
+
+        return run[(index + "--osu ".Length)..].Split(' ', '\n', '\r', '\\')[0];
     }
 }

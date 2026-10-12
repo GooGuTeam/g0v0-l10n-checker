@@ -179,7 +179,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          csproj="osu.Game/osu.Game.csproj"
+          # Relative to the workspace root, i.e. through the checkout's `path`, exactly as the
+          # checker is pointed at it further down with `--osu osu`.
+          csproj="osu/osu.Game/osu.Game.csproj"
 
           if [ ! -f "$csproj" ]; then
             echo "::error::$csproj does not exist, so G0V0ResourcesVersion cannot be read; pass resources-ref explicitly"
