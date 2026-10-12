@@ -105,12 +105,15 @@ internal sealed class Baseline
             ["entries"] = entries,
         };
 
-        string json = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        string json = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true, NewLine = "\n" });
 
         string? directory = Path.GetDirectoryName(Path.GetFullPath(path));
         if (directory is not null)
             Directory.CreateDirectory(directory);
 
-        File.WriteAllText(path, json + Environment.NewLine);
+        // A baseline is committed, so its bytes have to be the same whichever machine regenerated it.
+        // Environment.NewLine would make a Windows run produce CRLF and a CI run LF, which is both a
+        // diff-noise generator and a break of the repository's line-ending convention.
+        File.WriteAllText(path, json + "\n");
     }
 }

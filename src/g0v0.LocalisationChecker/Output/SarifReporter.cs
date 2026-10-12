@@ -47,6 +47,9 @@ internal sealed class SarifReporter : IReporter
     private static readonly JsonSerializerOptions serialiserOptions = new()
     {
         WriteIndented = true,
+        // See JsonReporter: the platform default would make the same report CRLF on Windows and LF on
+        // CI, and a SARIF file is compared between runs by the tools that consume it.
+        NewLine = "\n",
         // Alert messages quote keys, prefixes and file paths, and this document is never rendered as
         // HTML, so escaping every apostrophe as \u0027 would only make stored reports unreadable.
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,

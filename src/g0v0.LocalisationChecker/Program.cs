@@ -184,14 +184,18 @@ internal static class Program
         new SarifReporter(source).Report(diagnostics, summary, writer);
     }
 
-    /// <summary>Creates the containing directory when needed, so a path under a fresh temp dir works.</summary>
+    /// <summary>
+    /// Creates the containing directory when needed, so a path under a fresh temp dir works. The
+    /// newline is pinned to LF for the same reason the baseline is: these files are read back by
+    /// other tools and compared between runs, so they must not vary with the platform.
+    /// </summary>
     private static StreamWriter openReport(string path)
     {
         string? directory = Path.GetDirectoryName(Path.GetFullPath(path));
         if (directory is not null)
             Directory.CreateDirectory(directory);
 
-        return new StreamWriter(path);
+        return new StreamWriter(path) { NewLine = "\n" };
     }
 
     private static void writeBaseline(string path, IReadOnlyList<Diagnostic> diagnostics)

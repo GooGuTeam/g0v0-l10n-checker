@@ -17,6 +17,10 @@ internal sealed class JsonReporter : IReporter
     private static readonly JsonSerializerOptions serialiserOptions = new()
     {
         WriteIndented = true,
+        // JsonSerializerOptions.NewLine defaults to Environment.NewLine, which would make the same
+        // report CRLF on Windows and LF on CI. Reports are diffed and read back by other tools, so
+        // the bytes must not depend on the machine that wrote them.
+        NewLine = "\n",
         // Translation text is full of apostrophes and quotes; escaping them as \u0027 would make the
         // report unreadable for no benefit, since this is never injected into an HTML document.
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
