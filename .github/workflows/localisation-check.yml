@@ -1,0 +1,184 @@
+name: Localisation check
+
+# Reusable pre-build check. Call it from the osu repository with:
+#
+#   jobs:
+#     localisation:
+#       uses: GooGuTeam/g0v0-l10n-checker/.github/workflows/localisation-check.yml@main
+#       with:
+#         resources-ref: "2026.923.0"   # match G0V0ResourcesVersion in osu.Game.csproj
+#
+# By default the caller's own repository is checked out as the osu side, so no extra credentials are
+# needed beyond reading the (public) resources repository.
+
+on:
+  workflow_call:
+    inputs:
+      osu-repository:
+        description: osu! repository to check. Leave empty to check the calling repository.
+        type: string
+        required: false
+        default: ""
+      osu-ref:
+        description: Ref of the osu! repository. Ignored when osu-repository is empty.
+        type: string
+        required: false
+        default: ""
+      resources-repository:
+        description: Repository holding the .resx files.
+        type: string
+        required: false
+        default: GooGuTeam/g0v0-resources
+      resources-ref:
+        description: Ref of the resources repository. Pin this to the version in G0V0ResourcesVersion.
+        type: string
+        required: false
+        default: ""
+      extra-resx:
+        description: Additional resx folder, in DIR[=ROOT_NAMESPACE] form.
+        type: string
+        required: false
+        default: ""
+      baseline:
+        description: Baseline file to read. Empty disables baselines entirely.
+        type: string
+        required: false
+        default: checker/.localisation-baseline.json
+      fail-on:
+        description: never | error | warning
+        type: string
+        required: false
+        default: error
+    outputs:
+      errors:
+        description: Number of errors reported.
+        value: ${{ jobs.check.outputs.errors }}
+      warnings:
+        description: Number of warnings reported.
+        value: ${{ jobs.check.outputs.warnings }}
+  workflow_dispatch:
+    inputs:
+      osu-repository:
+        description: osu! repository to check.
+        type: string
+        default: GooGuTeam/g0v0
+      resources-repository:
+        description: Repository holding the .resx files.
+        type: string
+        default: GooGuTeam/g0v0-resources
+      resources-ref:
+        description: Ref of the resources repository.
+        type: string
+        default: ""
+      extra-resx:
+        description: Additional resx folder, in DIR[=ROOT_NAMESPACE] form.
+        type: string
+        default: ""
+      fail-on:
+        description: never | error | warning
+        type: string
+        default: error
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check localisation
+    runs-on: ubuntu-latest
+    outputs:
+      errors: ${{ steps.summary.outputs.errors }}
+      warnings: ${{ steps.summary.outputs.warnings }}
+    steps:
+      - name: Check out the calling repository as the osu! side
+        if: ${{ inputs.osu-repository == '' }}
+        uses: actions/checkout@v4
+        with:
+          path: osu
+
+      - name: Check out the configured osu! repository
+        if: ${{ inputs.osu-repository != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.osu-repository }}
+          ref: ${{ inputs.osu-ref }}
+          path: osu
+
+      - name: Check out the resources repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.resources-repository }}
+          ref: ${{ inputs.resources-ref }}
+          path: resources
+
+      - name: Check out the checker
+        uses: actions/checkout@v4
+        with:
+          repository: GooGuTeam/g0v0-l10n-checker
+          path: checker
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Run the checker
+        id: run
+        run: |
+          baseline_args="--no-baseline"
+          if [ -n "${{ inputs.baseline }}" ]; then
+            baseline_args="--baseline ${{ inputs.baseline }}"
+          fi
+
+          extra_args=""
+          if [ -n "${{ inputs.extra-resx }}" ]; then
+            extra_args="--extra-resx ${{ inputs.extra-resx }}"
+          fi
+
+          # --fail-on never keeps this step green so the annotations are always emitted; the summary
+          # step below decides whether the job itself fails.
+          dotnet run --project checker/src/g0v0.LocalisationChecker -c Release -- \
+            --osu osu \
+            --resources resources \
+            --format github \
+            --color never \
+            --fail-on never \
+            $baseline_args \
+            $extra_args \
+            --json-report "$RUNNER_TEMP/localisation.json"
+
+      - name: Summarise
+        id: summary
+        run: |
+          errors=$(jq '.summary.error' "$RUNNER_TEMP/localisation.json")
+          warnings=$(jq '.summary.warning' "$RUNNER_TEMP/localisation.json")
+          echo "errors=$errors" >> "$GITHUB_OUTPUT"
+          echo "warnings=$warnings" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Localisation check"
+            echo
+            echo "| severity | count |"
+            echo "| --- | --- |"
+            echo "| error | $errors |"
+            echo "| warning | $warnings |"
+            echo "| info | $(jq '.summary.info' "$RUNNER_TEMP/localisation.json") |"
+            echo "| suppressed by baseline | $(jq '.summary.suppressed' "$RUNNER_TEMP/localisation.json") |"
+            echo
+            echo "Checked $(jq '.summary.classes' "$RUNNER_TEMP/localisation.json") localisation classes against $(jq '.summary.resources' "$RUNNER_TEMP/localisation.json") resource files."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail when the threshold is exceeded
+        if: ${{ inputs.fail-on != 'never' }}
+        run: |
+          errors=${{ steps.summary.outputs.errors }}
+          warnings=${{ steps.summary.outputs.warnings }}
+
+          if [ "${{ inputs.fail-on }}" = "warning" ] && { [ "$errors" -gt 0 ] || [ "$warnings" -gt 0 ]; }; then
+            echo "::error::localisation check failed: $errors error(s), $warnings warning(s)"
+            exit 1
+          fi
+
+          if [ "${{ inputs.fail-on }}" = "error" ] && [ "$errors" -gt 0 ]; then
+            echo "::error::localisation check failed: $errors error(s)"
+            exit 1
+          fi

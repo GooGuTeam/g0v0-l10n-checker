@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        run: dotnet build g0v0.LocalisationChecker.sln -c Release
+
+      - name: Test
+        run: dotnet test g0v0.LocalisationChecker.sln -c Release --no-build
+
+      # The fixtures are a miniature osu / osu-resources pair whose only defect is one key that is
+      # missing from the resource file. Checking them proves the CLI, the reporter and the exit code
+      # all work end to end without needing either real repository.
+      - name: Smoke test the CLI on fixtures
+        run: |
+          dotnet run --project src/g0v0.LocalisationChecker -c Release --no-build -- \
+            --osu tests/fixtures/osu \
+            --resources tests/fixtures/resources \
+            --color never \
+            --no-baseline \
+            --no-summary \
+            --fail-on never > smoke.txt
+
+          cat smoke.txt
+
+          expected="osu.Game/Localisation/BrokenStrings.cs:20: error L10N001: key 'missing' is not defined in resource 'osu.Game.Resources.Localisation.Broken'"
+          if ! grep -qxF "$expected" smoke.txt; then
+            echo "::error::the fixture check did not report the expected diagnostic"
+            exit 1
+          fi
+
+          if [ "$(wc -l < smoke.txt)" -ne 1 ]; then
+            echo "::error::the fixtures should produce exactly one diagnostic"
+            exit 1
+          fi
+
+      # The version has a single source in Directory.Build.props, and a build-time override only works
+      # if the whole chain is wired up. Assert the wiring — and read the expected value from the same
+      # file, so bumping the version never means editing the CI config.
+      - name: Check --version reflects the assembly metadata
+        run: |
+          product=$(sed -n 's:.*<Product>\(.*\)</Product>.*:\1:p' Directory.Build.props)
+          declared=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' Directory.Build.props)
+
+          if [ -z "$product" ] || [ -z "$declared" ]; then
+            echo "::error::Directory.Build.props no longer declares <Product> and <VersionPrefix>"
+            exit 1
+          fi
+
+          # The SDK may append "+<revision>"; the declared version is what has to match.
+          actual=$(dotnet run --project src/g0v0.LocalisationChecker -c Release --no-build -- --version)
+
+          if [ "${actual%%+*}" != "$product $declared" ]; then
+            echo "::error::--version reported '$actual', expected '$product $declared'"
+            exit 1
+          fi
+
+          # Rebuild with an explicit version, then run the already-built assembly so MSBuild's own
+          # output cannot be mistaken for the tool's.
+          dotnet build src/g0v0.LocalisationChecker -c Release -p:Version=9.9.9 --nologo --verbosity quiet
+
+          overridden=$(dotnet run --project src/g0v0.LocalisationChecker -c Release --no-build -- --version)
+
+          if [ "$overridden" != "$product 9.9.9" ]; then
+            echo "::error::-p:Version did not reach the reported version: $overridden"
+            exit 1
+          fi
