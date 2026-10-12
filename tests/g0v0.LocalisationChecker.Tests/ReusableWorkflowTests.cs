@@ -71,4 +71,55 @@ public class ReusableWorkflowTests
         Assert.That(workflow, Does.Contain("github.event.pull_request.head.repo.full_name == github.repository"),
             "a pull request from a fork has a read-only token that permissions cannot widen");
     }
+
+    [Test]
+    public void The_resources_ref_is_derived_from_the_csproj_when_a_caller_names_none()
+    {
+        string workflow = Workflow();
+        string step = Step(workflow, "Resolve the resources ref");
+
+        Assert.That(step, Does.Contain("if: ${{ inputs.resources-ref == '' }}"),
+            "an explicit ref has to win: the resources repository depends on passing the commit under test");
+
+        Assert.That(step, Does.Contain("G0V0ResourcesVersion"),
+            "the derivation has to read the property the build itself consumes");
+
+        Assert.That(step, Does.Contain("-g0v0"),
+            "the tag is v<version>-g0v0; a bare version is not a ref and fails the checkout");
+
+        // Order is the whole trick: the property lives in the osu! side's working tree, and the
+        // resources checkout is what consumes the answer.
+        int osu = workflow.IndexOf("Check out the configured osu! repository", StringComparison.Ordinal);
+        int resolve = workflow.IndexOf("Resolve the resources ref", StringComparison.Ordinal);
+        int resources = workflow.IndexOf("Check out the resources repository", StringComparison.Ordinal);
+
+        Assert.That(osu, Is.LessThan(resolve), "the csproj has to be on disk before it can be read");
+        Assert.That(resolve, Is.LessThan(resources), "the ref has to be resolved before the checkout that needs it");
+
+        Assert.That(workflow, Does.Contain("ref: ${{ inputs.resources-ref || steps.resources.outputs.ref }}"),
+            "the resources checkout has to fall back to the resolved ref rather than to the default branch");
+    }
+
+    [Test]
+    public void The_summary_names_the_resources_that_were_compared()
+    {
+        string workflow = Workflow();
+        string summary = Step(workflow, "name: Summarise");
+
+        Assert.That(summary, Does.Contain("RESOURCES_REF: ${{ inputs.resources-ref || steps.resources.outputs.ref }}"),
+            "the summary has to report the ref the checkout actually used, not the one the caller asked for");
+
+        Assert.That(summary, Does.Contain("Resources:"),
+            "a cross-repository check that does not say which two revisions it compared cannot be triaged");
+    }
+
+    private static string Step(string workflow, string marker)
+    {
+        int start = workflow.IndexOf(marker, StringComparison.Ordinal);
+        Assert.That(start, Is.GreaterThanOrEqualTo(0), $"the step matched by '{marker}' is gone");
+
+        int end = workflow.IndexOf("\n      - ", start, StringComparison.Ordinal);
+
+        return workflow[start..(end < 0 ? workflow.Length : end)];
+    }
 }
