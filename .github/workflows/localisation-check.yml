@@ -9,7 +9,7 @@ name: Localisation check
 #         contents: read
 #         security-events: write   # only needed to publish the findings to code scanning
 #       with:
-#         resources-ref: "2026.923.0"   # match G0V0ResourcesVersion in osu.Game.csproj
+#         resources-ref: "v2026.1012.0-g0v0"   # the tag that published G0V0ResourcesVersion
 #
 # By default the caller's own repository is checked out as the osu side, so no extra credentials are
 # needed beyond reading the (public) resources repository.
@@ -57,7 +57,7 @@ on:
         required: false
         default: GooGuTeam/g0v0-resources
       resources-ref:
-        description: Ref of the resources repository. Pin this to the version in G0V0ResourcesVersion.
+        description: Ref of the resources repository, as a git ref, referencing the tag that published G0V0ResourcesVersion.
         type: string
         required: false
         default: ""

@@ -191,7 +191,7 @@ jobs:
       contents: read
       security-events: write   # only for the code scanning upload
     with:
-      resources-ref: "2026.923.0"   # match G0V0ResourcesVersion in osu.Game.csproj
+      resources-ref: "v2026.1012.0-g0v0"   # the tag that published G0V0ResourcesVersion
 ```
 
 The reusable workflow checks out the calling repository as the osu! side, the resources repository
@@ -199,6 +199,15 @@ The reusable workflow checks out the calling repository as the osu! side, the re
 summary table to the job summary, publishes the findings to code scanning, and fails the job when the
 threshold is exceeded. Inputs: `osu-repository`, `osu-ref`, `resources-repository`, `resources-ref`,
 `extra-resx`, `baseline`, `fail-on`, `sarif-source`.
+
+`resources-ref` takes a **git ref, not a version number**. The resources repository tags its releases
+`v<version>-g0v0` and its release workflow strips the `v` and the suffix before publishing, so the tag
+for `G0V0ResourcesVersion` = `2026.1012.0` is `v2026.1012.0-g0v0` — feeding the version in as-is fails
+the checkout, not the check. Pinning is what makes a run reproducible and makes the checker look at
+the same resources the app will look up at run time, but it also means the two move together: bumping
+`G0V0ResourcesVersion` without bumping this ref reports every key the new version added as missing.
+Leaving it empty checks against the resources repository's default branch instead — self-updating,
+but no longer the code the build consumes.
 
 ### The resources side
 
