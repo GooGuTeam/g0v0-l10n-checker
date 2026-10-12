@@ -198,7 +198,44 @@ The reusable workflow checks out the calling repository as the osu! side, the re
 (public, pinned by `resources-ref`), and the checker itself. It emits inline annotations, appends a
 summary table to the job summary, publishes the findings to code scanning, and fails the job when the
 threshold is exceeded. Inputs: `osu-repository`, `osu-ref`, `resources-repository`, `resources-ref`,
-`extra-resx`, `baseline`, `fail-on`.
+`extra-resx`, `baseline`, `fail-on`, `sarif-source`.
+
+### The resources side
+
+`GooGuTeam/g0v0-resources` calls the same workflow, but it is the mirror image: it *is* the resources
+repository, so it has to name the osu! side rather than being assumed to be it.
+
+```yaml
+jobs:
+  localisation:
+    uses: GooGuTeam/g0v0-l10n-checker/.github/workflows/localisation-check.yml@main
+    permissions:
+      contents: read
+      security-events: write
+    with:
+      osu-repository: GooGuTeam/g0v0
+      osu-ref: v2
+      resources-ref: ${{ github.sha }}   # the commit under test, not the default branch
+      sarif-source: resources
+```
+
+Three inputs carry the weight here:
+
+* **`osu-repository` is mandatory.** The first checkout reads an empty one as "the caller is the osu!
+  side", which for this caller would scan `osu.Game.Resources/Localisation/*.resx` as if they were
+  `*Strings.cs` and produce nothing but noise. The workflow now refuses to start in that case instead
+  of publishing it — the test is a case-insensitive comparison against `resources-repository`, so a
+  differently-cased spelling of the same repository is caught as well.
+* **`resources-ref` has to be explicit**, for the same reason the osu! side pins its ref: the default
+  branch is not the code under test. `${{ github.sha }}` is the merge commit on a pull request and the
+  pushed commit on a push.
+* **`sarif-source: resources`** publishes the `.resx` findings — 58 of the 85 at the time of writing —
+  instead of the `*Strings.cs` ones. Only the report changes; the cross-check itself always needs both
+  sides.
+
+So the two calls run the full pipeline each, and each repository gets the annotations, the summary
+table and the alerts whose paths it can actually open. There is no "upload once, both sides see it":
+the upload target is always the calling repository.
 
 The `permissions` block must grant `security-events: write` *on the calling job*, not just here: a
 called workflow can only be granted what its caller grants, and the token is otherwise read-only for
