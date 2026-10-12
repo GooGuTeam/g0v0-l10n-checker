@@ -112,6 +112,8 @@ Run `--help` for the full list. The parts worth calling out:
 -c, --color <mode>           auto | always | never        (default: auto)
 -f, --format <mode>          auto | human | github | json (default: auto)
     --json-report <file>     also write JSON, whatever --format is
+    --sarif-report <file>    also write SARIF 2.1.0, for GitHub code scanning
+    --sarif-source <side>    osu | resources              (default: osu)
     --min-severity <level>   info | warning | error       (default: info)
     --fail-on <level>        never | error | warning      (default: error)
     --severity <R=LEVEL>     override a rule's severity, repeatable
@@ -185,15 +187,24 @@ Add a pre-build check to the osu! repository with four lines:
 jobs:
   localisation:
     uses: GooGuTeam/g0v0-l10n-checker/.github/workflows/localisation-check.yml@main
+    permissions:
+      contents: read
+      security-events: write   # only for the code scanning upload
     with:
       resources-ref: "2026.923.0"   # match G0V0ResourcesVersion in osu.Game.csproj
 ```
 
 The reusable workflow checks out the calling repository as the osu! side, the resources repository
 (public, pinned by `resources-ref`), and the checker itself. It emits inline annotations, appends a
-summary table to the job summary, and fails the job when the threshold is exceeded. Inputs:
-`osu-repository`, `osu-ref`, `resources-repository`, `resources-ref`, `extra-resx`, `baseline`,
-`fail-on`.
+summary table to the job summary, publishes the findings to code scanning, and fails the job when the
+threshold is exceeded. Inputs: `osu-repository`, `osu-ref`, `resources-repository`, `resources-ref`,
+`extra-resx`, `baseline`, `fail-on`.
+
+The `permissions` block must grant `security-events: write` *on the calling job*, not just here: a
+called workflow can only be granted what its caller grants, and the token is otherwise read-only for
+that scope. Missing it costs the upload (a 403, swallowed) and nothing else — publishing to code
+scanning is best effort and never fails the check. Pull requests from forks are skipped for the same
+reason, since their token cannot be widened at all.
 
 To drive it by hand from an existing `CheckSanity.sh` style step instead, use the annotation format
 directly:
@@ -204,6 +215,34 @@ directly:
     dotnet run --project checker/src/g0v0.LocalisationChecker -c Release -- \
       --osu osu --resources resources --format github --color never --fail-on error
 ```
+
+### Code scanning
+
+`--sarif-report` writes a SARIF 2.1.0 file, the only format GitHub accepts for findings produced by
+something other than CodeQL. The reusable workflow already uploads it, so the findings become alerts
+under **Security → Code scanning**: they keep a state across runs (open, dismissed, fixed), they can
+be assigned and filtered, and a ruleset can require them before a merge.
+
+Three of the choices behind it are worth knowing, because none of them is what a first implementation
+would do:
+
+* **One report describes one repository.** A SARIF location is a path relative to the root of the
+  repository being scanned, so the two sides of the cross-check can never share a file.
+  `--sarif-source osu` (the default) publishes the `*Strings.cs` findings to the repository that
+  holds them, and `--sarif-source resources` does the same for the `.resx` side from that
+  repository's own workflow. Findings from an `--extra-resx` folder belong to neither, so they are
+  never reported.
+* **The baseline does not apply.** Code scanning tracks alert state itself, so uploading the known
+  issues is the point rather than a leak: the Security tab is where they get triaged, while the
+  baseline stays what it always was — the CI merge gate. The two lists are allowed to disagree.
+* **The alert identity is ours.** GitHub reads only `partialFingerprints.primaryLocationLineHash`,
+  and when it is absent the `upload-sarif` action falls back to hashing the file at the reported
+  path — which, for this tool, is a file in a *different* checkout that it cannot open. The
+  fingerprint is therefore computed from the same `rule|source|file|key` tuple the baseline keys on:
+  an alert survives its line moving, and is still new when its key is.
+
+The three reporters coexist on purpose. `--format github` annotates the lines a reviewer is already
+looking at, the job summary carries the totals, and SARIF is the list that outlives the run.
 
 ## Baselines
 
@@ -226,7 +265,7 @@ src/g0v0.LocalisationChecker/
   Parsing/    C# lexer, *Strings.cs parser, resx parser, resource-name derivation
   Workspace/  scanning the two checkouts
   Checking/   matcher, baselines and one file per rule
-  Output/     human / GitHub annotations / JSON reporters
+  Output/     human / GitHub annotations / JSON / SARIF reporters
 tests/g0v0.LocalisationChecker.Tests/
   fixtures/   a miniature osu + osu-resources pair used by CI's smoke test
 ```
