@@ -34,9 +34,13 @@ jobs:
       # all work end to end without needing either real repository.
       - name: Smoke test the CLI on fixtures
         run: |
+          # --format is pinned rather than left on auto. Under GitHub Actions auto selects the github
+          # reporter, which changes the output shape this assertion is written against and emits an
+          # ::error annotation for a defect the fixture is *supposed* to have.
           dotnet run --project src/g0v0.LocalisationChecker -c Release --no-build -- \
             --osu tests/fixtures/osu \
             --resources tests/fixtures/resources \
+            --format human \
             --color never \
             --no-baseline \
             --no-summary \
@@ -52,6 +56,39 @@ jobs:
 
           if [ "$(wc -l < smoke.txt)" -ne 1 ]; then
             echo "::error::the fixtures should produce exactly one diagnostic"
+            exit 1
+          fi
+
+      # The reusable workflow — and therefore the repository — consumes the github reporter and
+      # the JSON report, so assert both shapes from this repository's own CI. The annotations are
+      # written to a file and never echoed: emitting one from a *passing* step would surface a phantom
+      # failure on the check run.
+      - name: Smoke test the github and JSON reporters on fixtures
+        run: |
+          dotnet run --project src/g0v0.LocalisationChecker -c Release --no-build -- \
+            --osu tests/fixtures/osu \
+            --resources tests/fixtures/resources \
+            --format github \
+            --color never \
+            --no-baseline \
+            --no-summary \
+            --fail-on never \
+            --json-report report.json > github.txt
+
+          expected="::error file=osu.Game/Localisation/BrokenStrings.cs,line=20,title=Missing resource key::key 'missing' is not defined in resource 'osu.Game.Resources.Localisation.Broken'"
+          if ! grep -qxF "$expected" github.txt; then
+            echo "::error::the github reporter did not emit the expected annotation"
+            exit 1
+          fi
+
+          if [ "$(wc -l < github.txt)" -ne 1 ]; then
+            echo "::error::--no-summary should leave exactly one line in github format"
+            exit 1
+          fi
+
+          errors=$(jq '.summary.error' report.json)
+          if [ "$errors" != "1" ]; then
+            echo "::error::the JSON report should record one error, got '$errors'"
             exit 1
           fi
 
