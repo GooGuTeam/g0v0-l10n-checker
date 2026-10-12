@@ -201,7 +201,7 @@ internal static class Program
 
         return format switch
         {
-            OutputFormat.GitHub => new GitHubReporter(),
+            OutputFormat.GitHub => new GitHubReporter(!options.NoSummary),
             OutputFormat.Json => new JsonReporter(workspace.OsuRoot, workspace.ResourcesRoot),
             _ => new HumanReporter(ansi, !options.NoSummary),
         };

@@ -129,6 +129,10 @@ and only then checks whether stdout is a terminal.
 uses `path:line: severity RULE: message`, which is the same shape the repository's existing
 `CheckSanity` scripts emit.
 
+Pin `--format` in any CI step whose output is asserted on: `auto` changes the output shape the moment
+the same command runs under GitHub Actions, and the `github` format also renders findings as
+annotations on the check run.
+
 ### Versioning
 
 There is no version constant in the source. The single source is `VersionPrefix` in

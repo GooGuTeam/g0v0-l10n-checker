@@ -16,6 +16,10 @@ namespace g0v0.LocalisationChecker.Output;
 /// </remarks>
 internal sealed class GitHubReporter : IReporter
 {
+    private readonly bool showSummary;
+
+    public GitHubReporter(bool showSummary) => this.showSummary = showSummary;
+
     public void Report(IReadOnlyList<Diagnostic> diagnostics, ReportSummary summary, TextWriter writer)
     {
         foreach (Diagnostic diagnostic in diagnostics)
@@ -37,10 +41,11 @@ internal sealed class GitHubReporter : IReporter
             writer.WriteLine($"::{level} {properties}::{EscapeData(diagnostic.Message)}");
         }
 
-        writer.WriteLine($"::notice title=localisation-checker::Checked {summary.Classes} classes / "
-                         + $"{summary.Resources} resources - {summary.Errors} error(s), "
-                         + $"{summary.Warnings} warning(s), {summary.Infos} info(s)"
-                         + (summary.Suppressed > 0 ? $", {summary.Suppressed} suppressed" : string.Empty));
+        if (showSummary)
+            writer.WriteLine($"::notice title=localisation-checker::Checked {summary.Classes} classes / "
+                             + $"{summary.Resources} resources - {summary.Errors} error(s), "
+                             + $"{summary.Warnings} warning(s), {summary.Infos} info(s)"
+                             + (summary.Suppressed > 0 ? $", {summary.Suppressed} suppressed" : string.Empty));
     }
 
     private static string EscapeData(string value)

@@ -72,7 +72,7 @@ public class OutputTests
     {
         Diagnostic messy = sample with { Message = "line one\nline two 100% a:b,c" };
 
-        string[] lines = Render(new GitHubReporter(), messy);
+        string[] lines = Render(new GitHubReporter(showSummary: true), messy);
 
         Assert.That(lines[0], Is.EqualTo(
             "::error file=osu.Game/Localisation/HUD/SpectatorListStrings.cs,line=10,title=Prefix mismatch"
@@ -82,8 +82,25 @@ public class OutputTests
     [Test]
     public void Github_reporter_maps_severity_onto_the_right_command()
     {
-        Assert.That(Render(new GitHubReporter(), sample with { Severity = Severity.Warning })[0], Does.StartWith("::warning "));
-        Assert.That(Render(new GitHubReporter(), sample with { Severity = Severity.Info })[0], Does.StartWith("::notice "));
+        Assert.That(Render(new GitHubReporter(showSummary: true), sample with { Severity = Severity.Warning })[0], Does.StartWith("::warning "));
+        Assert.That(Render(new GitHubReporter(showSummary: true), sample with { Severity = Severity.Info })[0], Does.StartWith("::notice "));
+    }
+
+    [Test]
+    public void Github_reporter_emits_a_summary_notice_by_default()
+    {
+        string[] lines = Render(new GitHubReporter(showSummary: true), sample);
+
+        Assert.That(lines, Has.Length.EqualTo(2));
+        Assert.That(lines[1], Does.StartWith("::notice title=localisation-checker::Checked 1 classes / 2 resources"));
+    }
+
+    [Test]
+    public void Github_reporter_omits_the_summary_when_asked()
+    {
+        string[] lines = Render(new GitHubReporter(showSummary: false), sample);
+
+        Assert.That(lines, Has.Length.EqualTo(1));
     }
 
     [Test]
