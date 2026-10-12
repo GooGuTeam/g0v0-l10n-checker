@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>g0v0.LocalisationChecker</RootNamespace>
+    <AssemblyName>g0v0.LocalisationChecker</AssemblyName>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="g0v0.LocalisationChecker.Tests" />
+  </ItemGroup>
+
+</Project>
