@@ -86,6 +86,23 @@ public class CliParserTests
         Assert.That(options.JsonReportPath, Is.EqualTo("/tmp/report.json"));
     }
 
+    [Test]
+    public void Defaults_the_sarif_report_to_the_osu_side()
+    {
+        CliOptions options = CliParser.Parse(["--sarif-report", "/tmp/report.sarif"]);
+
+        Assert.That(options.SarifReportPath, Is.EqualTo("/tmp/report.sarif"));
+        Assert.That(options.SarifSource, Is.EqualTo(DiagnosticSource.Osu));
+    }
+
+    [Test]
+    public void Accepts_the_resources_side_for_the_sarif_report()
+    {
+        CliOptions options = CliParser.Parse(["--sarif-source", "RESOURCES"]);
+
+        Assert.That(options.SarifSource, Is.EqualTo(DiagnosticSource.Resources));
+    }
+
     [TestCase("--bogus")]
     [TestCase("--color", "sometimes")]
     [TestCase("--format", "xml")]
@@ -95,6 +112,7 @@ public class CliParserTests
     [TestCase("--severity", "L10N008")]
     [TestCase("--no-summary=yes")]
     [TestCase("--osu")]
+    [TestCase("--sarif-source", "extra")]
     public void Rejects_bad_input(params string[] args)
         => Assert.Throws<CliException>(() => CliParser.Parse(args));
 

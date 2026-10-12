@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Text.Json.Nodes;
+using g0v0.LocalisationChecker.Checking;
 using g0v0.LocalisationChecker.Model;
 using g0v0.LocalisationChecker.Output;
 
@@ -125,5 +126,113 @@ public class OutputTests
         Assert.That((int)entry["line"]!, Is.EqualTo(10));
         Assert.That((string)entry["key"]!, Is.EqualTo("prefix-key"));
         Assert.That((int)document["summary"]!["error"]!, Is.EqualTo(1));
+    }
+
+    private static JsonNode Sarif(DiagnosticSource source, params Diagnostic[] diagnostics)
+    {
+        var writer = new StringWriter();
+        new SarifReporter(source).Report(diagnostics, Summary(diagnostics.Length), writer);
+
+        return JsonNode.Parse(writer.ToString())!;
+    }
+
+    private static JsonNode OnlyResult(JsonNode sarif) => sarif["runs"]![0]!["results"]![0]!;
+
+    [Test]
+    public void Sarif_reporter_emits_the_shape_code_scanning_requires()
+    {
+        JsonNode sarif = Sarif(DiagnosticSource.Osu, sample);
+
+        Assert.That((string)sarif["version"]!, Is.EqualTo("2.1.0"));
+        Assert.That((string)sarif["$schema"]!, Is.EqualTo("https://json.schemastore.org/sarif-2.1.0.json"));
+
+        JsonNode driver = sarif["runs"]![0]!["tool"]!["driver"]!;
+        Assert.That((string)driver["name"]!, Is.EqualTo(VersionInfo.Product));
+        Assert.That((string)driver["version"]!, Is.EqualTo(VersionInfo.Version));
+
+        // Every rule needs these four, and code scanning refuses the upload without them.
+        JsonArray rules = driver["rules"]!.AsArray();
+        Assert.That(rules.Select(rule => (string)rule!["id"]!), Is.EqualTo(RuleIds.All));
+        Assert.That(rules.Select(rule => (string)rule!["shortDescription"]!["text"]!), Is.All.Not.Empty);
+        Assert.That(rules.Select(rule => (string)rule!["fullDescription"]!["text"]!), Is.All.Not.Empty);
+        Assert.That(rules.Select(rule => (string)rule!["help"]!["text"]!), Is.All.Not.Empty);
+        Assert.That(rules.Select(rule => (string)rule!["helpUri"]!), Is.All.EqualTo(RuleIds.DocumentationUrl));
+
+        JsonNode result = sarif["runs"]![0]!["results"]![0]!;
+        Assert.That((string)result["ruleId"]!, Is.EqualTo("L10N003"));
+        Assert.That((string)result["level"]!, Is.EqualTo("error"));
+        Assert.That((string)result["message"]!["text"]!, Is.EqualTo(sample.Message));
+
+        // ruleIndex has to point at the descriptor with the same id, or GitHub marks the wrong rule.
+        var index = (int)result["ruleIndex"]!;
+        Assert.That((string)rules[index]!["id"]!, Is.EqualTo((string)result["ruleId"]!));
+
+        JsonNode physical = result["locations"]![0]!["physicalLocation"]!;
+        Assert.That((string)physical["artifactLocation"]!["uri"]!, Is.EqualTo(sample.File));
+
+        JsonNode region = physical["region"]!;
+        Assert.That((int)region["startLine"]!, Is.EqualTo(10));
+        Assert.That((int)region["endLine"]!, Is.EqualTo(10));
+        Assert.That((int)region["startColumn"]!, Is.GreaterThanOrEqualTo(1));
+        Assert.That((int)region["endColumn"]!, Is.GreaterThanOrEqualTo((int)region["startColumn"]!));
+
+        Assert.That((string)result["partialFingerprints"]!["primaryLocationLineHash"]!, Is.Not.Empty);
+    }
+
+    [Test]
+    public void Sarif_reporter_maps_every_severity_onto_a_level()
+    {
+        Assert.That((string)OnlyResult(Sarif(DiagnosticSource.Osu, sample with { Severity = Severity.Warning }))["level"]!, Is.EqualTo("warning"));
+        Assert.That((string)OnlyResult(Sarif(DiagnosticSource.Osu, sample with { Severity = Severity.Info }))["level"]!, Is.EqualTo("note"));
+    }
+
+    [Test]
+    public void Sarif_reporter_starts_a_file_level_finding_at_line_one()
+    {
+        JsonNode region = OnlyResult(Sarif(DiagnosticSource.Osu, sample with { Line = 0 }))
+            ["locations"]![0]!["physicalLocation"]!["region"]!;
+
+        Assert.That((int)region["startLine"]!, Is.EqualTo(1));
+        Assert.That((int)region["endLine"]!, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Sarif_reporter_only_describes_the_repository_it_was_asked_for()
+    {
+        Diagnostic resources = sample with
+        {
+            RuleId = RuleIds.OrphanResourceKey,
+            Severity = Severity.Warning,
+            Source = DiagnosticSource.Resources,
+            File = "osu.Game.Resources/Localisation/HUD/SpectatorList.resx",
+            Key = "spare",
+        };
+
+        JsonNode osu = Sarif(DiagnosticSource.Osu, sample, resources);
+        JsonNode resourcesOnly = Sarif(DiagnosticSource.Resources, sample, resources);
+
+        Assert.That(osu["runs"]![0]!["results"]!.AsArray(), Has.Count.EqualTo(1));
+        Assert.That((string)OnlyResult(osu)["ruleId"]!, Is.EqualTo("L10N003"));
+
+        Assert.That(resourcesOnly["runs"]![0]!["results"]!.AsArray(), Has.Count.EqualTo(1));
+        Assert.That((string)OnlyResult(resourcesOnly)["ruleId"]!, Is.EqualTo("L10N002"));
+    }
+
+    /// <summary>
+    /// The whole point of writing our own fingerprint: an alert keeps its identity when the code
+    /// around it moves, so code scanning does not close one alert and open another.
+    /// </summary>
+    [Test]
+    public void Sarif_fingerprint_survives_a_line_move_but_not_a_different_key()
+    {
+        static string Fingerprint(Diagnostic diagnostic)
+            => (string)OnlyResult(Sarif(DiagnosticSource.Osu, diagnostic))["partialFingerprints"]!["primaryLocationLineHash"]!;
+
+        string before = Fingerprint(sample);
+        string after = Fingerprint(sample with { Line = sample.Line + 500 });
+
+        Assert.That(after, Is.EqualTo(before));
+        Assert.That(before, Does.EndWith(":1"));
+        Assert.That(Fingerprint(sample with { Key = "other-key" }), Is.Not.EqualTo(before));
     }
 }
