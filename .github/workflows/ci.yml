@@ -105,7 +105,10 @@ jobs:
             exit 1
           fi
 
-          # The SDK may append "+<revision>"; the declared version is what has to match.
+          # --version prints "<product> <version>[+<revision>]". The SDK appends the revision whenever
+          # it can read the source revision from git, which it always can on a checkout made by
+          # actions/checkout — so every assertion here compares only the part before the "+" and never
+          # expects the suffix to be absent.
           actual=$(dotnet run --project src/g0v0.LocalisationChecker -c Release --no-build -- --version)
 
           if [ "${actual%%+*}" != "$product $declared" ]; then
@@ -119,7 +122,7 @@ jobs:
 
           overridden=$(dotnet run --project src/g0v0.LocalisationChecker -c Release --no-build -- --version)
 
-          if [ "$overridden" != "$product 9.9.9" ]; then
+          if [ "${overridden%%+*}" != "$product 9.9.9" ]; then
             echo "::error::-p:Version did not reach the reported version: $overridden"
             exit 1
           fi
