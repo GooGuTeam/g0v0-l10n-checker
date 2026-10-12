@@ -1,0 +1,36 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <IsPackable>false</IsPackable>
+    <Authors>GooGuTeam</Authors>
+    <Product>g0v0.LocalisationChecker</Product>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <!--
+    The single source of truth for the tool's version. The SDK turns these into the assembly
+    attributes (AssemblyVersion, AssemblyFileVersion, AssemblyInformationalVersion) and the tool
+    reads them back at run time, so the version it reports can never drift from the binary.
+
+    Override for a single build without editing anything:
+      dotnet build -p:Version=1.2.3
+      dotnet build -p:VersionSuffix=rc.1
+
+    The SDK appends the source revision to AssemblyInformationalVersion ("0.1.0+9f3c1ab") when the
+    build runs inside a git checkout; the tool shows the version and the revision separately.
+  -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
+
+</Project>

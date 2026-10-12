@@ -1,0 +1,6 @@
+# Every authored file is UTF-8 without a BOM and uses LF line endings.
+# .editorconfig states the same rule for editors; this file makes it hold for Git.
+#
+# `eol=lf` is declared explicitly instead of relying on `text=auto` alone, so that a
+# Windows checkout with core.autocrlf=true cannot reintroduce CRLF.
+* text=auto eol=lf

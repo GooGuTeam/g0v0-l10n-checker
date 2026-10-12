@@ -1,0 +1,20 @@
+## Build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+## Test output
+TestResults/
+*.trx
+
+## Local scratch
+*.log
+_out.txt
+
+## IDE
+.idea/
+
+## Workspace data (agent memory, not project documentation)
+.workbuddy/
