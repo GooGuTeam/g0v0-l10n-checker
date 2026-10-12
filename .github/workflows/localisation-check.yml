@@ -5,11 +5,18 @@ name: Localisation check
 #   jobs:
 #     localisation:
 #       uses: GooGuTeam/g0v0-l10n-checker/.github/workflows/localisation-check.yml@main
+#       permissions:
+#         contents: read
+#         security-events: write   # only needed to publish the findings to code scanning
 #       with:
 #         resources-ref: "2026.923.0"   # match G0V0ResourcesVersion in osu.Game.csproj
 #
 # By default the caller's own repository is checked out as the osu side, so no extra credentials are
 # needed beyond reading the (public) resources repository.
+#
+# Results are reported three ways: inline annotations on the check run, a table in the job summary,
+# and a SARIF file uploaded to code scanning, where the findings become alerts with a lifecycle of
+# their own. The last one is best effort — see the upload step.
 
 on:
   workflow_call:
@@ -81,6 +88,10 @@ on:
 
 permissions:
   contents: read
+  # Needed to upload the SARIF report to code scanning. A called workflow can only be granted what
+  # the caller grants, so the calling job has to ask for this too or the upload is rejected with a
+  # 403 — which is why the upload step below is tolerant of that rejection.
+  security-events: write
 
 jobs:
   check:
@@ -136,6 +147,10 @@ jobs:
 
           # --fail-on never keeps this step green so the annotations are always emitted; the summary
           # step below decides whether the job itself fails.
+          #
+          # The SARIF report is written from the same run but is deliberately not subject to the
+          # baseline: code scanning keeps its own alert state, and the known issues are exactly what
+          # deserves to be listed there for triage.
           dotnet run --project checker/src/g0v0.LocalisationChecker -c Release -- \
             --osu osu \
             --resources resources \
@@ -144,7 +159,9 @@ jobs:
             --fail-on never \
             $baseline_args \
             $extra_args \
-            --json-report "$RUNNER_TEMP/localisation.json"
+            --json-report "$RUNNER_TEMP/localisation.json" \
+            --sarif-report "$RUNNER_TEMP/localisation.sarif" \
+            --sarif-source osu
 
       - name: Summarise
         id: summary
@@ -166,6 +183,20 @@ jobs:
             echo
             echo "Checked $(jq '.summary.classes' "$RUNNER_TEMP/localisation.json") localisation classes against $(jq '.summary.resources' "$RUNNER_TEMP/localisation.json") resource files."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Code scanning is where GitHub lists third-party findings, and it is the only place an alert
+      # outlives the run. Three things can go wrong, and none of them may turn the check red:
+      #
+      #  * a pull request from a fork gets a read-only token that `permissions:` cannot widen, so the
+      #    upload is skipped there;
+      #  * a caller that has not granted `security-events: write` gets a 403;
+      #  * uploading is optional anyway — the annotations above are the gate.
+      - name: Upload the report to code scanning
+        if: ${{ success() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ runner.temp }}/localisation.sarif
 
       - name: Fail when the threshold is exceeded
         if: ${{ inputs.fail-on != 'never' }}

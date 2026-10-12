@@ -92,6 +92,51 @@ jobs:
             exit 1
           fi
 
+      # The reusable workflow uploads this file to code scanning, which rejects a report that is
+      # missing any of the fields below. Assert the contract here so a failure shows up in this
+      # repository's CI rather than in a caller's build.
+      - name: Smoke test the SARIF reporter on fixtures
+        run: |
+          dotnet run --project src/g0v0.LocalisationChecker -c Release --no-build -- \
+            --osu tests/fixtures/osu \
+            --resources tests/fixtures/resources \
+            --format human \
+            --color never \
+            --no-baseline \
+            --no-summary \
+            --fail-on never \
+            --sarif-report localisation.sarif > /dev/null
+
+          product=$(sed -n 's:.*<Product>\(.*\)</Product>.*:\1:p' Directory.Build.props)
+
+          jq -e --arg product "$product" '
+            .version == "2.1.0"
+            and (.runs | length == 1)
+            and (.runs[0].tool.driver.name == $product)
+            and (.runs[0].tool.driver.rules | length > 0)
+            and (.runs[0].tool.driver.rules | all(.shortDescription.text | length > 0))
+            and (.runs[0].tool.driver.rules | all(.fullDescription.text | length > 0))
+            and (.runs[0].tool.driver.rules | all(.help.text | length > 0))
+            and (.runs[0].results | length == 1)
+            and (.runs[0].results[0].ruleId == "L10N001")
+            and (.runs[0].results[0].level == "error")
+            and (.runs[0].results[0].message.text | contains("is not defined in resource"))
+            and (.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri
+                 == "osu.Game/Localisation/BrokenStrings.cs")
+            and (.runs[0].results[0].locations[0].physicalLocation.region.startLine == 20)
+            and (.runs[0].results[0].partialFingerprints.primaryLocationLineHash | length > 0)
+          ' localisation.sarif
+
+          # The report is rooted at the osu! repository, so the resources side must not leak into it:
+          # its paths would resolve nowhere in the repository being scanned.
+          resource_side=$(jq '[.runs[0].results[]
+            | select(.locations[0].physicalLocation.artifactLocation.uri | startswith("osu.Game.Resources/"))]
+            | length' localisation.sarif)
+          if [ "$resource_side" != "0" ]; then
+            echo "::error::the osu SARIF report contains $resource_side resource-side findings"
+            exit 1
+          fi
+
       # The version has a single source in Directory.Build.props, and a build-time override only works
       # if the whole chain is wired up. Assert the wiring — and read the expected value from the same
       # file, so bumping the version never means editing the CI config.
