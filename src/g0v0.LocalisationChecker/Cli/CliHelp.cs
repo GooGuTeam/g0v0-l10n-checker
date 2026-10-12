@@ -31,6 +31,13 @@ internal static class CliHelp
                                        (github is selected automatically under GitHub Actions)
               --min-severity <level>   info | warning | error. Default: info
               --json-report <file>     Also write the JSON document here, whatever --format is
+              --sarif-report <file>    Also write a SARIF 2.1.0 report here, for GitHub code
+                                       scanning. Ignores the baseline on purpose: the Security tab
+                                       tracks alert state itself, so the known issues are uploaded
+                                       too and triaged there
+              --sarif-source <side>    osu | resources. Which repository the SARIF file describes.
+                                       Default: osu. Its paths are relative to that repository's
+                                       root, so one report never covers both sides
           -q, --quiet                  Shorthand for --min-severity error --no-summary
               --no-summary             Hide the trailing totals
 

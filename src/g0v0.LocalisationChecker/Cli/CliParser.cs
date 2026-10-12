@@ -95,6 +95,14 @@ internal static class CliParser
                     options.JsonReportPath = TakeValue(args, ref index, name, inlineValue);
                     break;
 
+                case "--sarif-report":
+                    options.SarifReportPath = TakeValue(args, ref index, name, inlineValue);
+                    break;
+
+                case "--sarif-source":
+                    options.SarifSource = ParseSarifSource(TakeValue(args, ref index, name, inlineValue));
+                    break;
+
                 case "--no-summary":
                     RejectInlineValue(name, inlineValue);
                     options.NoSummary = true;
@@ -183,6 +191,17 @@ internal static class CliParser
         "warning" => Severity.Warning,
         "error" => Severity.Error,
         _ => throw new CliException($"invalid value '{value}' for {name} (expected info, warning or error)"),
+    };
+
+    /// <summary>
+    /// Only the two real repositories are addressable: an <c>--extra-resx</c> folder is not a
+    /// repository, so a path relative to its root would resolve nowhere.
+    /// </summary>
+    private static DiagnosticSource ParseSarifSource(string value) => value.ToLowerInvariant() switch
+    {
+        "osu" => DiagnosticSource.Osu,
+        "resources" => DiagnosticSource.Resources,
+        _ => throw new CliException($"invalid value '{value}' for --sarif-source (expected osu or resources)"),
     };
 
     private static FailOn ParseFailOn(string value) => value.ToLowerInvariant() switch

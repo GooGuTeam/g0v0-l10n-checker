@@ -154,6 +154,11 @@ internal static class Program
         if (options.JsonReportPath is not null)
             writeJsonReport(options.JsonReportPath, reported, summary, workspace);
 
+        // Deliberately fed the unfiltered list: code scanning owns the alert lifecycle, so the
+        // baseline keeps gating CI without hiding the known issues from the Security tab.
+        if (options.SarifReportPath is not null)
+            writeSarifReport(options.SarifReportPath, found, summary, options.SarifSource);
+
         buildReporter(options, workspace).Report(reported, summary, Console.Out);
 
         return hasFailed(options.FailOn, summary) ? 1 : 0;
@@ -165,12 +170,28 @@ internal static class Program
         ReportSummary summary,
         LoadedWorkspace workspace)
     {
+        using var writer = openReport(path);
+        new JsonReporter(workspace.OsuRoot, workspace.ResourcesRoot).Report(diagnostics, summary, writer);
+    }
+
+    private static void writeSarifReport(
+        string path,
+        IReadOnlyList<Diagnostic> diagnostics,
+        ReportSummary summary,
+        DiagnosticSource source)
+    {
+        using var writer = openReport(path);
+        new SarifReporter(source).Report(diagnostics, summary, writer);
+    }
+
+    /// <summary>Creates the containing directory when needed, so a path under a fresh temp dir works.</summary>
+    private static StreamWriter openReport(string path)
+    {
         string? directory = Path.GetDirectoryName(Path.GetFullPath(path));
         if (directory is not null)
             Directory.CreateDirectory(directory);
 
-        using var writer = new StreamWriter(path);
-        new JsonReporter(workspace.OsuRoot, workspace.ResourcesRoot).Report(diagnostics, summary, writer);
+        return new StreamWriter(path);
     }
 
     private static void writeBaseline(string path, IReadOnlyList<Diagnostic> diagnostics)

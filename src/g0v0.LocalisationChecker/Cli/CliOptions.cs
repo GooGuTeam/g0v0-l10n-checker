@@ -68,6 +68,19 @@ internal sealed class CliOptions
     /// </summary>
     public string? JsonReportPath { get; set; }
 
+    /// <summary>
+    /// When set, a SARIF report for <see cref="SarifSource"/> is written here regardless of
+    /// <see cref="Format"/>, ready to be handed to GitHub code scanning.
+    /// </summary>
+    public string? SarifReportPath { get; set; }
+
+    /// <summary>
+    /// Which side of the cross-check the SARIF report describes. A SARIF file addresses files by a
+    /// path relative to the root of the repository being scanned, so a report can only ever cover one
+    /// of the two repositories.
+    /// </summary>
+    public DiagnosticSource SarifSource { get; set; } = DiagnosticSource.Osu;
+
     public bool NoSummary { get; set; }
 
     public bool ShowHelp { get; set; }
