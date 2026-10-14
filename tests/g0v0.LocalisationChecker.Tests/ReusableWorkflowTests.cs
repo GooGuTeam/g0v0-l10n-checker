@@ -73,7 +73,7 @@ public class ReusableWorkflowTests
     }
 
     [Test]
-    public void The_resources_ref_is_derived_from_the_csproj_when_a_caller_names_none()
+    public void The_resources_ref_is_derived_from_the_csproj_outside_a_pull_request()
     {
         string workflow = Workflow();
         string step = Step(workflow, "Resolve the resources ref");
@@ -111,13 +111,100 @@ public class ReusableWorkflowTests
     }
 
     [Test]
+    public void A_pull_request_is_never_pinned_to_a_released_tag()
+    {
+        string workflow = Workflow();
+        string step = Step(workflow, "Resolve the resources ref");
+
+        int eventTest = step.IndexOf("\"pull_request\"", StringComparison.Ordinal);
+        int derivation = step.IndexOf("G0V0ResourcesVersion", StringComparison.Ordinal);
+
+        Assert.That(eventTest, Is.GreaterThanOrEqualTo(0),
+            "the resolve step no longer tells a pull request apart from the other events");
+        Assert.That(eventTest, Is.LessThan(derivation),
+            "a pull request is answered before the derivation is reached: it is the one case that must not be "
+            + "checked against the last release, because the branch under review normally needs resources that "
+            + "have not been released yet");
+
+        // Both halves matter. The `elif` is what stops a listing that failed from falling through to
+        // the tag below, which would quietly restore the old behaviour on exactly the run — a pull
+        // request — that this exists to change.
+        Assert.That(step, Does.Contain("elif [ -z \"$ref\" ]"),
+            "the derivation has to be the else-branch of the pull request case, or an unreachable "
+            + "resources repository silently pins a pull request to a release");
+    }
+
+    [Test]
+    public void A_pull_request_falls_back_to_the_newest_resources()
+    {
+        string workflow = Workflow();
+        string step = Step(workflow, "Resolve the resources ref");
+
+        Assert.That(step, Does.Contain("git ls-remote"),
+            "the step has to look at the repository's refs to answer anything at all");
+
+        Assert.That(step, Does.Contain("--symref"),
+            "without the symref line the default branch cannot be named, and naming it in the workflow "
+            + "instead would break the day the repository is renamed or its default branch changes");
+
+        Assert.That(step, Does.Contain("$2 == \"HEAD\""),
+            "the commit the default branch is on has to be read, so that the summary and the checkout "
+            + "cannot end up naming two different revisions");
+
+        Assert.That(step, Does.Contain("refs/heads/"),
+            "the branch has to come out of the listing, not out of a literal in this file");
+    }
+
+    [Test]
+    public void A_pull_request_description_can_name_the_resources()
+    {
+        string workflow = Workflow();
+        string step = Step(workflow, "Resolve the resources ref");
+
+        Assert.That(step, Does.Contain("PR_BODY: ${{ github.event.pull_request.body }}"),
+            "the description has to reach the step through the environment");
+
+        int script = step.IndexOf("run: |", StringComparison.Ordinal);
+        Assert.That(script, Is.GreaterThanOrEqualTo(0));
+
+        string shell = step[script..];
+
+        // The one assertion here that is about safety rather than behaviour: a pull request
+        // description is text anyone can write, so it may never be interpolated into the script the
+        // shell reads. Everything the step needs arrives as an environment variable.
+        Assert.That(shell, Does.Not.Contain("${{"),
+            "nothing from the event may be interpolated into the shell script");
+
+        Assert.That(shell, Does.Contain("resources-ref[[:space:]]*:"),
+            "the `Resources-Ref:` line the documentation promises has to be the one that is read");
+
+        int description = shell.IndexOf("PR_BODY", StringComparison.Ordinal);
+        int fallback = shell.IndexOf("\"pull_request\"", StringComparison.Ordinal);
+
+        Assert.That(description, Is.GreaterThanOrEqualTo(0), "the description is never read");
+        Assert.That(description, Is.LessThan(fallback),
+            "a description line outranks the default, so it has to be read before the default is chosen");
+    }
+
+    [Test]
     public void The_summary_names_the_resources_that_were_compared()
     {
         string workflow = Workflow();
         string summary = Step(workflow, "name: Summarise");
+        string step = Step(workflow, "Resolve the resources ref");
 
-        Assert.That(summary, Does.Contain("RESOURCES_REF: ${{ inputs.resources-ref || steps.resources.outputs.ref }}"),
+        Assert.That(summary, Does.Contain("RESOURCES_REF: ${{ inputs.resources-ref || steps.resources.outputs.label }}"),
             "the summary has to report the ref the checkout actually used, not the one the caller asked for");
+
+        Assert.That(summary, Does.Contain("RESOURCES_SOURCE: ${{ steps.resources.outputs.source }}"),
+            "the summary has to say where that ref came from: with three sources, the pair alone is not "
+            + "enough to tell whether the check looked at a release or at a branch");
+
+        // The two outputs the checkout and the summary each read have to be the ones the step writes.
+        Assert.That(step, Does.Contain("echo \"ref=$ref\" >> \"$GITHUB_OUTPUT\""),
+            "the resources checkout reads steps.resources.outputs.ref");
+        Assert.That(step, Does.Contain("echo \"label=$label\" >> \"$GITHUB_OUTPUT\""),
+            "the summary reads steps.resources.outputs.label");
 
         Assert.That(summary, Does.Contain("Resources:"),
             "a cross-repository check that does not say which two revisions it compared cannot be triaged");

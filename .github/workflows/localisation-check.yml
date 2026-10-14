@@ -8,10 +8,13 @@ name: Localisation check
 #       permissions:
 #         contents: read
 #         security-events: write   # only needed to publish the findings to code scanning
-#       with:
-#         # Nothing to configure: the resources ref is read from G0V0ResourcesVersion in
-#         # osu.Game/osu.Game.csproj and resolved to the tag v<version>-g0v0. Pass resources-ref
-#         # only to override that, e.g. to check against an unreleased commit.
+#
+# Nothing has to be configured. A pull request is checked against the newest resources, because the
+# two repositories are developed together and a release lags behind the branch under review; every
+# other run is checked against the resources the build itself names. To pin one anyway, put a line
+# in the pull request description:
+#
+#   Resources-Ref: v2026.1012.0-g0v0
 #
 # By default the caller's own repository is checked out as the osu side, so no extra credentials are
 # needed beyond reading the (public) resources repository.
@@ -28,7 +31,7 @@ name: Localisation check
 #       with:
 #         osu-repository: GooGuTeam/g0v0
 #         osu-ref: v2
-#         resources-ref: ${{ github.sha }}   # the commit under test: a derived tag would not be it
+#         resources-ref: ${{ github.sha }}   # the commit under test, never a derived default
 #         sarif-source: resources
 #
 # The whole cross-check runs either way — both sides are needed to check anything. Only the SARIF
@@ -59,7 +62,7 @@ on:
         required: false
         default: GooGuTeam/g0v0-resources
       resources-ref:
-        description: Ref of the resources repository, as a git ref. Empty derives the tag v<G0V0ResourcesVersion>-g0v0 from the osu! side's csproj.
+        description: Ref of the resources repository, as a git ref. Empty takes a Resources-Ref line from the pull request description, and otherwise the newest resources on a pull request or the tag v<G0V0ResourcesVersion>-g0v0 outside one.
         type: string
         required: false
         default: ""
@@ -101,7 +104,7 @@ on:
         type: string
         default: GooGuTeam/g0v0-resources
       resources-ref:
-        description: Ref of the resources repository. Empty derives it from G0V0ResourcesVersion.
+        description: Ref of the resources repository. Empty uses the tag v<G0V0ResourcesVersion>-g0v0, a manual run never being a pull request.
         type: string
         default: ""
       extra-resx:
@@ -162,62 +165,154 @@ jobs:
           ref: ${{ inputs.osu-ref }}
           path: osu
 
-      # Which resources the build consumes is written down on the osu! side, not here: the repository
-      # tags every release `v<version>-g0v0`, and its release workflow strips both the `v` and the
-      # `-g0v0` before the package is published, so `G0V0ResourcesVersion` maps one-to-one onto a tag.
-      # Reading it here is what keeps a caller from carrying a ref that has to be edited by hand on
-      # every resources release — and pins the check to the resources the game will look up at run
-      # time rather than to whatever the default branch happens to be.
+      # Which resources to compare against. Three answers, in order of precedence:
       #
-      # An explicit `resources-ref` wins: a caller whose resources are not a published tag at all has
-      # to name the ref itself (the resources repository checking a pull request does exactly that).
+      #  1. the caller's explicit `resources-ref` input, read by the checkout below and deliberately
+      #     not repeated here: the resources repository passes the commit under test, and nothing may
+      #     override that;
+      #  2. a `Resources-Ref:` line in the pull request description, for the cases the default does
+      #     not fit — a resources branch, a specific commit, an older release;
+      #  3. the default below, which depends on why the workflow ran.
+      #
+      # A pull request is checked against the newest resources rather than against a release. The two
+      # repositories are developed together, so the branch under review normally wants the resources
+      # that go with it, and a release predates them: resolving `G0V0ResourcesVersion` would pin the
+      # check to the last published package and report every key the branch adds as missing — noise
+      # about the change under review rather than a finding about it.
+      #
+      # Every other run keeps that derivation, because there the question is the opposite one: does
+      # the pair that will actually ship agree? `G0V0ResourcesVersion` names exactly the resources the
+      # build references, and the repository tags every release `v<version>-g0v0` (its release
+      # workflow strips both the `v` and the `-g0v0` before publishing), so the property maps
+      # one-to-one onto a tag.
       - name: Resolve the resources ref
         id: resources
         if: ${{ inputs.resources-ref == '' }}
         env:
           RESOURCES: ${{ inputs.resources-repository }}
+          EVENT: ${{ github.event_name }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
 
-          # Relative to the workspace root, i.e. through the checkout's `path`, exactly as the
-          # checker is pointed at it further down with `--osu osu`.
-          csproj="osu/osu.Game/osu.Game.csproj"
+          repo="https://github.com/${RESOURCES}.git"
 
-          if [ ! -f "$csproj" ]; then
-            echo "::error::$csproj does not exist, so G0V0ResourcesVersion cannot be read; pass resources-ref explicitly"
-            exit 1
+          # One listing answers every question asked below: does a ref a human typed exist, and which
+          # commit the default branch is on. `--symref` adds the line naming the branch HEAD points
+          # at, which is what makes the default branch resolvable without hard-coding `master`.
+          refs=""
+          if refs=$(git ls-remote --symref "$repo" 2>/dev/null); then
+            echo "listed the refs in ${RESOURCES}"
+          else
+            echo "::warning::could not list the refs in ${RESOURCES}; a ref that cannot be confirmed is left to the checkout below to reject"
           fi
 
-          version=$(sed -n 's:.*<G0V0ResourcesVersion[^>]*>\([^<]*\)</G0V0ResourcesVersion>.*:\1:p' "$csproj" | head -n 1 | tr -d '[:space:]')
+          ref=""
+          label=""
+          source=""
 
-          if [ -z "$version" ]; then
-            echo "::error::no G0V0ResourcesVersion in $csproj; pass resources-ref explicitly"
-            exit 1
+          # A plain line rather than a checkbox, so it survives any pull request template. Markdown
+          # decoration around it is tolerated — the line is read through it rather than parsed.
+          #
+          #   Resources-Ref: v2026.1012.0-g0v0
+          #
+          # It arrives through the environment instead of being interpolated into this script: a pull
+          # request description is text anyone can write, and it must never reach the shell as code.
+          if [ -n "${PR_BODY:-}" ]; then
+            if line=$(grep -iE -m1 '^[[:space:]]*[`"]*[[:space:]]*resources-ref[[:space:]]*:' <<<"$PR_BODY"); then
+              ref=$(sed 's/^[^:]*://' <<<"$line" | tr -d '`"' | tr -d '[:space:]')
+            fi
+
+            if [ -n "$ref" ]; then
+              label="$ref"
+              source="from the pull request description"
+              echo "the pull request description asks for the resources ref ${ref}"
+
+              # A typo would otherwise surface as a bare "couldn't find remote ref" from the
+              # checkout, with nothing said about what was meant. A commit hash cannot be confirmed
+              # from a listing that advertises only refs, so it is taken on trust and named as such.
+              if [ -n "$refs" ] && [ -z "$(awk -v t="refs/tags/${ref}" -v b="refs/heads/${ref}" \
+                  '$2 == t || $2 == b { print "yes"; exit }' <<<"$refs")" ]; then
+                case "$ref" in
+                  *[!0-9a-fA-F]*)
+                    echo "::error::${RESOURCES} has neither a tag nor a branch called ${ref}, which the pull request description asks for"
+                    near=$(awk -v v="$ref" '{ sub("refs/(tags|heads)/", "", $2); if (index($2, v)) print "    " $2 }' <<<"$refs")
+                    if [ -n "$near" ]; then
+                      echo "::error::refs in ${RESOURCES} mentioning ${ref}:"
+                      echo "$near"
+                    fi
+                    exit 1
+                    ;;
+                  *)
+                    if [ "${#ref}" -lt 7 ]; then
+                      echo "::error::${ref} is neither a tag nor a branch in ${RESOURCES}, and too short to be a commit hash"
+                      exit 1
+                    fi
+                    echo "::notice::${RESOURCES} has no ref called ${ref}; taking it for a commit hash and letting the checkout fetch it"
+                    ;;
+                esac
+              fi
+            fi
           fi
 
-          ref="v${version}-g0v0"
-          echo "$csproj has G0V0ResourcesVersion $version, published as the tag $ref"
+          # Nothing was named, so it comes down to why the workflow ran.
+          if [ -z "$ref" ] && [ "$EVENT" = "pull_request" ]; then
+            # A pull request is never checked against a derived release tag — not even when the
+            # listing above failed, which is why this is an `elif` below rather than a second guard.
+            # The newest resources are what a branch was written against. The commit is resolved
+            # instead of leaving the branch to move underneath, so the ref named in the summary and
+            # the ref checked out below cannot turn out to be two different things.
+            label="the default branch"
+            source="the newest resources, not a release"
+            if [ -n "$refs" ]; then
+              sha=$(awk '$2 == "HEAD" { print $1; exit }' <<<"$refs")
+              if [ -n "$sha" ]; then
+                branch=$(awk '$1 == "ref:" { sub("refs/heads/", "", $2); print $2; exit }' <<<"$refs")
+                ref="$sha"
+                label="${branch:-default}@$(cut -c 1-7 <<<"$sha")"
+              fi
+            fi
+            echo "checking against ${label} of ${RESOURCES}"
+          elif [ -z "$ref" ]; then
+            # Relative to the workspace root, i.e. through the checkout's `path`, exactly as the
+            # checker is pointed at it further down with `--osu osu`.
+            csproj="osu/osu.Game/osu.Game.csproj"
 
-          # A missing tag would otherwise end the checkout below with a bare "couldn't find remote
-          # ref". Say which version asked for it and which tags do exist: the usual cause is a version
-          # bumped here before the resources were released, and the tag it should have been is then
-          # obvious from the list.
-          if tags=$(git ls-remote --tags --refs "https://github.com/${RESOURCES}.git" 2>/dev/null); then
-            if [ -z "$(awk -v want="refs/tags/$ref" '$2 == want { print "found"; exit }' <<<"$tags")" ]; then
+            if [ ! -f "$csproj" ]; then
+              echo "::error::$csproj does not exist, so G0V0ResourcesVersion cannot be read; pass resources-ref explicitly"
+              exit 1
+            fi
+
+            version=$(sed -n 's:.*<G0V0ResourcesVersion[^>]*>\([^<]*\)</G0V0ResourcesVersion>.*:\1:p' "$csproj" | head -n 1 | tr -d '[:space:]')
+
+            if [ -z "$version" ]; then
+              echo "::error::no G0V0ResourcesVersion in $csproj; pass resources-ref explicitly"
+              exit 1
+            fi
+
+            ref="v${version}-g0v0"
+            label="$ref"
+            source="from G0V0ResourcesVersion ${version} in the osu! csproj"
+            echo "$csproj has G0V0ResourcesVersion $version, published as the tag $ref"
+
+            # A missing tag would otherwise end the checkout below with a bare "couldn't find remote
+            # ref". Say which version asked for it and which tags do exist: the usual cause is a
+            # version bumped here before the resources were released, and the tag it should have been
+            # is then obvious from the list.
+            if [ -n "$refs" ] && [ -z "$(awk -v want="refs/tags/$ref" '$2 == want { print "yes"; exit }' <<<"$refs")" ]; then
               echo "::error::${RESOURCES} has no tag ${ref}, which is what G0V0ResourcesVersion ${version} resolves to"
-              near=$(awk -v v="$version" '{ sub("refs/tags/", "", $2); if (index($2, v)) print "    " $2 }' <<<"$tags")
+              near=$(awk -v v="$version" '{ sub("refs/tags/", "", $2); if (index($2, v)) print "    " $2 }' <<<"$refs")
               if [ -n "$near" ]; then
                 echo "::error::existing tags mentioning ${version}:"
                 echo "$near"
               fi
               exit 1
             fi
-          else
-            echo "::warning::could not list the tags in ${RESOURCES} to confirm ${ref}; the checkout below rejects it if it is wrong"
           fi
 
-          echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "label=$label" >> "$GITHUB_OUTPUT"
+          echo "source=$source" >> "$GITHUB_OUTPUT"
 
       - name: Check out the resources repository
         uses: actions/checkout@v7
@@ -271,10 +366,12 @@ jobs:
       - name: Summarise
         id: summary
         env:
-          # The same expression the resources checkout uses, so the summary names the pair that was
-          # actually compared rather than the pair the caller asked for.
-          RESOURCES_REF: ${{ inputs.resources-ref || steps.resources.outputs.ref }}
-          RESOURCES_VERSION: ${{ steps.resources.outputs.version }}
+          # The ref the resources checkout resolved to, named the way the resolve step named it, so
+          # the summary reports the pair that was actually compared rather than the pair the caller
+          # asked for. The step is skipped when the caller passed an explicit ref, hence the
+          # fall-backs below.
+          RESOURCES_REF: ${{ inputs.resources-ref || steps.resources.outputs.label }}
+          RESOURCES_SOURCE: ${{ steps.resources.outputs.source }}
         run: |
           errors=$(jq '.summary.error' "$RUNNER_TEMP/localisation.json")
           warnings=$(jq '.summary.warning' "$RUNNER_TEMP/localisation.json")
@@ -293,7 +390,7 @@ jobs:
             echo
             echo "Checked $(jq '.summary.classes' "$RUNNER_TEMP/localisation.json") localisation classes against $(jq '.summary.resources' "$RUNNER_TEMP/localisation.json") resource files."
             echo
-            echo "Resources: \`$RESOURCES_REF\` in ${{ inputs.resources-repository }}${RESOURCES_VERSION:+ - derived from G0V0ResourcesVersion $RESOURCES_VERSION}"
+            echo "Resources: \`${RESOURCES_REF:-unresolved}\` in ${{ inputs.resources-repository }} (${RESOURCES_SOURCE:-passed by the caller})"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # Code scanning is where GitHub lists third-party findings, and it is the only place an alert

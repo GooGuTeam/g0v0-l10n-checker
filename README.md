@@ -198,12 +198,24 @@ publishes the findings to code scanning, and fails the job when the threshold is
 `osu-repository`, `osu-ref`, `resources-repository`, `resources-ref`, `extra-resx`, `baseline`,
 `fail-on`, `sarif-source`.
 
+Which resources are compared against is resolved rather than configured: the two subsections below
+cover what a pull request gets by default, and how to pin something else.
+
 ### Which resources are checked
 
-Nothing has to be configured for that. The version is already written down on the osu! side:
-`G0V0ResourcesVersion` in `osu.Game/osu.Game.csproj` is what the build references, the resources
-repository tags every release `v<version>-g0v0`, and its release workflow strips both the `v` and the
-suffix before publishing. The tag therefore follows from the property:
+Nothing has to be configured, and the answer depends on why the workflow ran.
+
+**A pull request is checked against the newest resources.** The two repositories are developed
+together, and a branch that adds strings normally needs resources that have not been released yet, so
+the check is run against the resources repository's default branch. The workflow resolves that branch
+to the commit it is on at that moment rather than leaving it free to move, so the revision named in
+the summary and the revision checked out are the same one.
+
+**Every other run — a push to the development branch, a manual dispatch — is checked against the
+resources the build itself names.** There the question is the opposite one: does the pair that will
+actually ship agree? `G0V0ResourcesVersion` in `osu.Game/osu.Game.csproj` is what the build
+references, the resources repository tags every release `v<version>-g0v0`, and its release workflow
+strips both the `v` and the suffix before publishing. The tag therefore follows from the property:
 
 ```
 G0V0ResourcesVersion 2026.1012.0   ->   v2026.1012.0-g0v0
@@ -218,9 +230,24 @@ So bumping `G0V0ResourcesVersion` is all the osu! repository does. A pinned ref 
 be edited on every resources release, and a stale one reports every key the new version added as
 missing.
 
-`resources-ref` remains an input, and an explicit value wins. A caller whose resources are not a
-published tag at all has to use it — the resources repository checking a pull request passes the
-commit under test rather than the version the osu! side happens to name:
+### Pinning the resources of a pull request
+
+When the newest resources are not the ones a branch should be read against — a resources branch of
+its own, a specific commit, an older release — put a line in the pull request description:
+
+```
+Resources-Ref: v2026.1012.0-g0v0
+```
+
+The value is a git ref and is used as written, so a tag, a branch and a commit hash all work. Markdown
+around the line is ignored, so it survives a template or a backtick. A value that names neither a tag
+nor a branch stops the run before anything is checked out, listing the refs that do exist when they
+resemble it — a typo fails with the tag it probably meant rather than with a bare `couldn't find
+remote ref`. A value that looks like a commit hash is taken on trust, since a listing of refs cannot
+confirm one.
+
+The description is the only choice a pull request can make for itself: an explicit `resources-ref` on
+the calling job still outranks it, and outranks the default for every other event too.
 
 ```yaml
       resources-ref: ${{ github.sha }}
@@ -244,7 +271,7 @@ jobs:
     with:
       osu-repository: GooGuTeam/g0v0
       osu-ref: v2
-      resources-ref: ${{ github.sha }}   # the commit under test: a derived tag would not be it
+      resources-ref: ${{ github.sha }}   # the commit under test, not the osu! side's default
       sarif-source: resources
 ```
 
@@ -255,10 +282,10 @@ Three inputs carry the weight here:
   `*Strings.cs` and produce nothing but noise. The workflow now refuses to start in that case instead
   of publishing it — the test is a case-insensitive comparison against `resources-repository`, so a
   differently-cased spelling of the same repository is caught as well.
-* **`resources-ref` has to stay explicit here**, and this is the one caller that cannot leave it out:
-  the derivation reads `G0V0ResourcesVersion` off the osu! side and lands on a *published tag*, which
-  is not the code under review. `${{ github.sha }}` is the merge commit on a pull request and the
-  pushed commit on a push.
+* **`resources-ref` has to stay explicit here**, and this is the one caller that cannot leave it out.
+  Every default is resolved against the *osu!* side, so leaving it empty would check the osu! code
+  against this repository's default branch — the one revision a pull request here is not.
+  `${{ github.sha }}` is the merge commit on a pull request and the pushed commit on a push.
 * **`sarif-source: resources`** publishes the `.resx` findings — 16 of the 52 at the time of writing —
   instead of the `*Strings.cs` ones. Only the report changes; the cross-check itself always needs both
   sides.
